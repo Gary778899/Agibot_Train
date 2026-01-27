@@ -79,7 +79,7 @@ def get_euler_xyz_tensor(quat):
 class X2DHStandEnv(LeggedRobot):
     '''
     X2DHStandEnv is a class that represents a custom environment for the X2 humanoid robot.
-    Controls legs (12 DOFs) and waist (3 DOFs) for a total of 15 controlled DOFs.
+    Controls legs (12 DOFs).
 
     Args:
         cfg (LeggedRobotCfg): Configuration object for the legged robot.
@@ -295,7 +295,7 @@ class X2DHStandEnv(LeggedRobot):
         self.ref_dof_pos[:, 10] = sin_pos_r * self.cfg.rewards.final_swing_joint_delta_pos[10]
         self.ref_dof_pos[:, 11] = sin_pos_r * self.cfg.rewards.final_swing_joint_delta_pos[11]
         # waist DOFs remain at default (0.0)
-        self.ref_dof_pos[:, 12:15] = 0.0
+        # self.ref_dof_pos[:, 12:15] = 0.0
 
         self.ref_dof_pos[torch.abs(sin_pos) < 0.1] = 0.
         
@@ -309,7 +309,7 @@ class X2DHStandEnv(LeggedRobot):
     def create_sim(self):
         """ Creates simulation, terrain and evironments
         """
-        self.up_axis_idx = 2  # 2 for z, 1 is y -> adapt gravity accordingly
+        self.up_axis_idx = 2  # 2 for z, 1 for y -> adapt gravity accordingly
         self.sim = self.gym.create_sim(
             self.sim_device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
         mesh_type = self.cfg.terrain.mesh_type
@@ -376,10 +376,10 @@ class X2DHStandEnv(LeggedRobot):
         # privileged obs
         privileged_obs_buf = torch.cat((
             self.command_input,  # 2 + 3
-            (self.dof_pos - self.default_joint_pd_target) * self.obs_scales.dof_pos,  # 15
-            self.dof_vel * self.obs_scales.dof_vel,  # 15
-            self.actions,  # 15
-            diff,  # 15
+            (self.dof_pos - self.default_joint_pd_target) * self.obs_scales.dof_pos,  # 12
+            self.dof_vel * self.obs_scales.dof_vel,  # 12
+            self.actions,  # 12
+            diff,  # 12
             self.base_lin_vel * self.obs_scales.lin_vel,  # 3
             self.base_ang_vel * self.obs_scales.ang_vel,  # 3
             self.base_euler_xyz * self.obs_scales.quat,  # 3
@@ -443,15 +443,19 @@ class X2DHStandEnv(LeggedRobot):
         q = (self.lagged_dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos
         dq = self.lagged_dof_vel * self.obs_scales.dof_vel  
 
-        # 52
+        # 47
         obs_buf = torch.cat((
             self.command_input,  # 5 = 2D(sin cos) + 3D(vel_x, vel_y, aug_vel_yaw)
-            q,    # 15
-            dq,  # 15
-            self.actions,   # 15
+            q,    # 12
+            dq,  # 12
+            self.actions,   # 12
             self.lagged_base_ang_vel * self.obs_scales.ang_vel,  # 3
             self.lagged_base_euler_xyz * self.obs_scales.quat,  # 3
         ), dim=-1)
+
+        if self.cfg.env.num_single_obs == 48:
+                stand_command = (torch.norm(self.commands[:, :3], dim=1, keepdim=True) <= self.cfg.commands.stand_com_threshold)
+                obs_buf = torch.cat((obs_buf, stand_command),dim=1)
 
         if self.cfg.terrain.measure_heights:
             heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1, 1.) * self.obs_scales.height_measurements
@@ -660,12 +664,12 @@ class X2DHStandEnv(LeggedRobot):
     def _reward_default_joint_pos(self):
         """
         Calculates the reward for keeping joint positions close to default positions, with a focus 
-        on penalizing deviation in yaw and roll directions.
+        on penalizing deviation in yaw and roll directions. Excludes yaw and roll from the main penalty.
         """
         joint_diff = self.dof_pos - self.default_joint_pd_target
-        # Indices for yaw and roll: 1,2,5 (left), 7,8,11 (right), and waist yaw 12
-        yaw_roll_indices = [1, 2, 5, 7, 8, 11, 12]
-        yaw_roll = torch.norm(joint_diff[:, yaw_roll_indices], dim=1)
+        left_yaw_roll = joint_diff[:, [1,2,5]]
+        right_yaw_roll = joint_diff[:, [7,8,11]]
+        yaw_roll = torch.norm(left_yaw_roll, dim=1) + torch.norm(right_yaw_roll, dim=1)
         yaw_roll = torch.clamp(yaw_roll - 0.1, 0, 50)
         return torch.exp(-yaw_roll * 100) - 0.01 * torch.norm(joint_diff, dim=1)
 
@@ -779,7 +783,9 @@ class X2DHStandEnv(LeggedRobot):
 
     def _reward_low_speed(self):
         """
-        Rewards or penalizes the robot based on its speed relative to the commanded speed.
+        Rewards or penalizes the robot based on its speed relative to the commanded speed. 
+        This function checks if the robot is moving too slow, too fast, or at the desired speed, 
+        and if the movement direction matches the command.
         """
         # Calculate the absolute value of speed and command for comparison
         absolute_speed = torch.abs(self.base_lin_vel[:, 0])
@@ -798,9 +804,13 @@ class X2DHStandEnv(LeggedRobot):
         reward = torch.zeros_like(self.base_lin_vel[:, 0])
 
         # Assign rewards based on conditions
+        # Speed too low
         reward[speed_too_low] = -1.0
+        # Speed too high
         reward[speed_too_high] = 0.
+        # Speed within desired range
         reward[speed_desired] = 1.2
+        # Sign mismatch has the highest priority
         reward[sign_mismatch] = -2.0
         return reward * (self.commands[:, 0].abs() > 0.05)
     

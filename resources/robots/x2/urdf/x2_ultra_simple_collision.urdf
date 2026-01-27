@@ -566,7 +566,7 @@
     </visual>
     
   </link>
-  <joint name="waist_yaw_joint" type="revolute">
+  <joint name="waist_yaw_joint" type="fixed">
     <origin xyz="0 0 0.0670600000000297" rpy="0 0 0" />
     <parent link="pelvis" />
     <child link="waist_yaw_link" />
@@ -590,7 +590,7 @@
     </visual>
     
   </link>
-  <joint name="waist_pitch_joint" type="revolute">
+  <joint name="waist_pitch_joint" type="fixed">
     <origin xyz="0 0 0.0880106468356499" rpy="0 0 0" />
     <parent link="waist_yaw_link" />
     <child link="waist_pitch_link" />
@@ -619,7 +619,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="waist_roll_joint" type="revolute">
+  <joint name="waist_roll_joint" type="fixed">
     <origin xyz="0 0 0" rpy="0 0 0" />
     <parent link="waist_pitch_link" />
     <child link="torso_link" />
@@ -660,7 +660,7 @@
     </visual>
     
   </link>
-  <joint name="left_shoulder_pitch_joint" type="revolute">
+  <joint name="left_shoulder_pitch_joint" type="fixed">
     <origin xyz="0.00329906676354264 0.143031506663431 0.241647721005027" rpy="0.209439453777995 0 0" />
     <parent link="torso_link" />
     <child link="left_shoulder_pitch_link" />
@@ -689,7 +689,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="left_shoulder_roll_joint" type="revolute">
+  <joint name="left_shoulder_roll_joint" type="fixed">
     <origin xyz="-0.000499991072907324 0.0495 0" rpy="0 0 0" />
     <parent link="left_shoulder_pitch_link" />
     <child link="left_shoulder_roll_link" />
@@ -725,7 +725,7 @@
     </collision>
     
   </link>
-  <joint name="left_shoulder_yaw_joint" type="revolute">
+  <joint name="left_shoulder_yaw_joint" type="fixed">
     <origin xyz="0.00122423638490546 0 -0.121194848262102" rpy="0 -0.00597565694965793 0" />
     <parent link="left_shoulder_roll_link" />
     <child link="left_shoulder_yaw_link" />
@@ -754,7 +754,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="left_elbow_joint" type="revolute">
+  <joint name="left_elbow_joint" type="fixed">
     <origin xyz="0.0140000000488655 0.000199986464082369 -0.0829500000002385" rpy="0 0.00597565694965793 0" />
     <parent link="left_shoulder_yaw_link" />
     <child link="left_elbow_link" />
@@ -783,7 +783,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="left_wrist_yaw_joint" type="revolute">
+  <joint name="left_wrist_yaw_joint" type="fixed">
     <origin xyz="-0.0132797235062217 -9.75487744990788E-05 -0.120575783591803" rpy="0 0 0" />
     <parent link="left_elbow_link" />
     <child link="left_wrist_yaw_link" />
@@ -807,7 +807,7 @@
     </visual>
     
   </link>
-  <joint name="left_wrist_pitch_joint" type="revolute">
+  <joint name="left_wrist_pitch_joint" type="fixed">
     <origin xyz="0.000490001227040848 0 -0.0819985359552045" rpy="0 -0.00597566028430406 0" />
     <parent link="left_wrist_yaw_link" />
     <child link="left_wrist_pitch_link" />
@@ -837,7 +837,7 @@
     </collision>
     
   </link>
-  <joint name="left_wrist_roll_joint" type="revolute">
+  <joint name="left_wrist_roll_joint" type="fixed">
     <origin xyz="0 0 0" rpy="0 0 0" />
     <parent link="left_wrist_pitch_link" />
     <child link="left_wrist_roll_link" />
@@ -861,7 +861,7 @@
     </visual>
     
   </link>
-  <joint name="right_shoulder_pitch_joint" type="revolute">
+  <joint name="right_shoulder_pitch_joint" type="fixed">
     <origin xyz="0.00330093831251838 -0.143030971450747 0.241648201390685" rpy="-0.209442812383636 0 0" />
     <parent link="torso_link" />
     <child link="right_shoulder_pitch_link" />
@@ -890,7 +890,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="right_shoulder_roll_joint" type="revolute">
+  <joint name="right_shoulder_roll_joint" type="fixed">
     <origin xyz="-0.000499999994070091 -0.0495000000000002 0" rpy="0 0.000154003092926045 0" />
     <parent link="right_shoulder_pitch_link" />
     <child link="right_shoulder_roll_link" />
@@ -926,7 +926,7 @@
     </collision> 
     
   </link>
-  <joint name="right_shoulder_yaw_joint" type="revolute">
+  <joint name="right_shoulder_yaw_joint" type="fixed">
     <origin xyz="0.000499999999999765 0 -0.121199999999934" rpy="0 0 0" />
     <parent link="right_shoulder_roll_link" />
     <child link="right_shoulder_yaw_link" />
@@ -956,7 +956,7 @@
     </collision>
     
   </link>
-  <joint name="right_elbow_joint" type="revolute">
+  <joint name="right_elbow_joint" type="fixed">
     <origin xyz="0.0139999999999662 -0.0002000000000143 -0.0829500000000745" rpy="0 0 0" />
     <parent link="right_shoulder_yaw_link" />
     <child link="right_elbow_link" />
@@ -985,7 +985,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="right_wrist_yaw_joint" type="revolute">
+  <joint name="right_wrist_yaw_joint" type="fixed">
     <origin xyz="-0.0140000017961392 9.7526096753231E-05 -0.120694276209686" rpy="0 0 3.27341906322599E-05" />
     <parent link="right_elbow_link" />
     <child link="right_wrist_yaw_link" />
@@ -1009,7 +1009,7 @@
     </visual>
     
   </link>
-  <joint name="right_wrist_pitch_joint" type="revolute">
+  <joint name="right_wrist_pitch_joint" type="fixed">
     <origin xyz="0 0 -0.081799999999999" rpy="0 0 -3.27341932546355E-05" />
     <parent link="right_wrist_yaw_link" />
     <child link="right_wrist_pitch_link" />
@@ -1039,7 +1039,7 @@
     </collision>
     
   </link>
-  <joint name="right_wrist_roll_joint" type="revolute">
+  <joint name="right_wrist_roll_joint" type="fixed">
     <origin xyz="0 0 0" rpy="0 0 0" />
     <parent link="right_wrist_pitch_link" />
     <child link="right_wrist_roll_link" />
@@ -1063,7 +1063,7 @@
     </visual>
     
   </link>
-  <joint name="head_yaw_joint" type="revolute">
+  <joint name="head_yaw_joint" type="fixed">
     <origin xyz="0.00834772789983268 0 0.309397077276121" rpy="0 0 0" />
     <parent link="torso_link" />
     <child link="head_yaw_link" />
@@ -1087,7 +1087,7 @@
     </visual>
     
   </link>
-  <joint name="head_pitch_joint" type="revolute">
+  <joint name="head_pitch_joint" type="fixed">
     <origin xyz="0 0 0.0889" rpy="0 0 0" />
     <parent link="head_yaw_link" />
     <child link="head_pitch_link" />

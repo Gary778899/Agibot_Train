@@ -287,7 +287,7 @@ def play(args):
         print(f"Video saved to: {dir}")
 
 if __name__ == '__main__':
-    EXPORT_POLICY = False
+    EXPORT_POLICY = False # Set to True to export the policy as a JIT module
     FIX_COMMAND = True  # Set to True for constant speed (0.5 m/s forward)
     args = get_args()
     RENDER = args.save_video  # Enable rendering if --save_video flag is passed

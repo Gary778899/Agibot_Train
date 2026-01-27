@@ -35,19 +35,19 @@ from humanoid.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCf
 class X2DHStandCfg(LeggedRobotCfg):
     """
     Configuration class for the X2 humanoid robot.
-    Controls legs and waist (15 DOFs total)
+    Controls lower limbs only (12 DOFs)
     """
     class env(LeggedRobotCfg.env):
         # change the observation dim
         frame_stack = 66      #all histroy obs num
         short_frame_stack = 5   #short history step
         c_frame_stack = 3  #all histroy privileged obs num
-        num_single_obs = 56     # command(5) + q(15) + dq(15) + actions(15) + ang_vel(3) + euler(3) = 56
+        num_single_obs = 47     # same as x1 humanoid
         num_observations = int(frame_stack * num_single_obs)
-        single_num_privileged_obs = 85  # command(5) + dof_pos(15) + dof_vel(15) + actions(15) + diff(15) + base_lin_vel(3) + base_ang_vel(3) + base_euler(3) + push_force(2) + push_torque(3) + friction(1) + mass(1) + stance(2) + contact(2)
-        num_privileged_obs = int(c_frame_stack * single_num_privileged_obs)
+        single_num_privileged_obs = 73  # same as x1 humanoid
         single_linvel_index = 53
-        num_actions = 15    # 12 leg joints + 3 waist joints (arms and head are fixed in URDF)
+        num_privileged_obs = int(c_frame_stack * single_num_privileged_obs)
+        num_actions = 12    # 12 leg joints 
         num_envs = 4096
         episode_length_s = 24 #episode length in seconds
         use_ref_actions = False
@@ -60,11 +60,12 @@ class X2DHStandCfg(LeggedRobotCfg):
         torque_limit = 0.85
 
     class asset(LeggedRobotCfg.asset):
-        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/X2/x2_ultra_simple_collision.urdf'
+        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/x2/urdf/x2_ultra_simple_collision.urdf'
+        xml_file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/x2/mjcf/scene.xml'
         
         name = "x2"
         foot_name = "ankle_roll"
-        knee_name = "knee"
+        knee_name = "knee_link"
 
         terminate_after_contacts_on = ['pelvis']
         penalize_contacts_on = ["pelvis"]
@@ -121,7 +122,7 @@ class X2DHStandCfg(LeggedRobotCfg):
             height_measurements = 0.1
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.67]  
+        pos = [0.0, 0.0, 0.68]  
 
         default_joint_angles = {  # = target angles [rad] when action = 0.0
             # Legs (controlled)
@@ -138,9 +139,9 @@ class X2DHStandCfg(LeggedRobotCfg):
             'right_ankle_pitch_joint': -0.21, 
             'right_ankle_roll_joint': 0.0,
             # Waist (controlled)
-            'waist_yaw_joint': 0.0,
-            'waist_pitch_joint': 0.0,
-            'waist_roll_joint': 0.0,
+            # 'waist_yaw_joint': 0.0,
+            # 'waist_pitch_joint': 0.0,
+            # 'waist_roll_joint': 0.0,
         }
 
     class control(LeggedRobotCfg.control):
@@ -152,14 +153,14 @@ class X2DHStandCfg(LeggedRobotCfg):
             'hip_pitch_joint': 30, 'hip_roll_joint': 40, 'hip_yaw_joint': 35,
             'knee_joint': 100, 'ankle_pitch_joint': 35, 'ankle_roll_joint': 35,
             # Waist
-            'waist_yaw_joint': 50, 'waist_pitch_joint': 50, 'waist_roll_joint': 50,
+            # 'waist_yaw_joint': 50, 'waist_pitch_joint': 50, 'waist_roll_joint': 50,
         }
         damping = {
             # Legs
             'hip_pitch_joint': 3, 'hip_roll_joint': 3.0, 'hip_yaw_joint': 4, 
             'knee_joint': 10, 'ankle_pitch_joint': 0.5, 'ankle_roll_joint': 0.5,
             # Waist
-            'waist_yaw_joint': 5, 'waist_pitch_joint': 5, 'waist_roll_joint': 5,
+            # 'waist_yaw_joint': 5, 'waist_pitch_joint': 5, 'waist_roll_joint': 5,
         }
 
         # action scale: target angle = actionScale * action + defaultAngle
@@ -235,9 +236,7 @@ class X2DHStandCfg(LeggedRobotCfg):
         joint_10_friction_range = [0.5, 1.3]
         joint_11_friction_range = [0.01, 1.15]
         joint_12_friction_range = [0.01, 1.15]
-        joint_13_friction_range = [0.01, 1.15]
-        joint_14_friction_range = [0.01, 1.15]
-        joint_15_friction_range = [0.01, 1.15]
+
 
         randomize_joint_damping = True
         randomize_joint_damping_each_joint = False
@@ -254,9 +253,7 @@ class X2DHStandCfg(LeggedRobotCfg):
         joint_10_damping_range = [0.9, 1.5]
         joint_11_damping_range = [0.3, 1.5]
         joint_12_damping_range = [0.3, 1.5]
-        joint_13_damping_range = [0.3, 1.5]
-        joint_14_damping_range = [0.3, 1.5]
-        joint_15_damping_range = [0.3, 1.5]
+
 
         randomize_joint_armature = True
         randomize_joint_armature_each_joint = False
@@ -273,9 +270,7 @@ class X2DHStandCfg(LeggedRobotCfg):
         joint_10_armature_range = [0.0001, 0.05]
         joint_11_armature_range = [0.0001, 0.05]
         joint_12_armature_range = [0.0001, 0.05]
-        joint_13_armature_range = [0.0001, 0.05]
-        joint_14_armature_range = [0.0001, 0.05]
-        joint_15_armature_range = [0.0001, 0.05]
+
 
         add_lag = True
         randomize_lag_timesteps = True
@@ -332,7 +327,7 @@ class X2DHStandCfg(LeggedRobotCfg):
         soft_dof_pos_limit = 0.98
         soft_dof_vel_limit = 0.9
         soft_torque_limit = 0.9
-        base_height_target = 0.85  # adjusted for X2
+        base_height_target = 0.61  
         foot_min_dist = 0.2
         foot_max_dist = 1.0
 

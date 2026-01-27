@@ -203,6 +203,12 @@ def get_args():
             "help": "Force display off at all times",
         },
         {
+            "name": "--save_video",
+            "action": "store_true",
+            "default": False,
+            "help": "Save video recording of the simulation",
+        },
+        {
             "name": "--horovod",
             "action": "store_true",
             "default": False,

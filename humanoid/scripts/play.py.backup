@@ -45,54 +45,45 @@ from isaacgym.torch_utils import *
 import torch
 from datetime import datetime
 
+import pygame
+from threading import Thread
 
-# Speed command generation (no joystick required)
+
 x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.0, 0.0
-USE_GENERATED_COMMANDS = True  # Set to False to use FIX_COMMAND mode
+joystick_use = True
+joystick_opened = False
 
-def generate_speed_commands(step_idx, total_steps=10000):
-    """
-    Generate varying speed commands for testing.
-    Sequences:
-    - Forward walk (steps 0-2000)
-    - Strafe left (steps 2000-4000) 
-    - Strafe right (steps 4000-6000)
-    - Rotate (steps 6000-8000)
-    - Combined motion (steps 8000-10000)
-    """
-    global x_vel_cmd, y_vel_cmd, yaw_vel_cmd
-    
-    progress = (step_idx % total_steps) / total_steps
-    
-    if progress < 0.2:  # Forward walk
-        x_vel_cmd = 0.5
-        y_vel_cmd = 0.0
-        yaw_vel_cmd = 0.0
-    elif progress < 0.4:  # Strafe left
-        x_vel_cmd = 0.0
-        y_vel_cmd = 0.3
-        yaw_vel_cmd = 0.0
-    elif progress < 0.6:  # Strafe right
-        x_vel_cmd = 0.0
-        y_vel_cmd = -0.3
-        yaw_vel_cmd = 0.0
-    elif progress < 0.8:  # Rotate
-        x_vel_cmd = 0.0
-        y_vel_cmd = 0.0
-        yaw_vel_cmd = 0.5
-    else:  # Combined motion (forward + rotate)
-        x_vel_cmd = 0.5
-        y_vel_cmd = 0.0
-        yaw_vel_cmd = 0.3
+if joystick_use:
+    pygame.init()
+    try:
+        # get joystick
+        joystick = pygame.joystick.Joystick(0)
+        joystick.init()
+        joystick_opened = True
+    except Exception as e:
+        print(f"无法打开手柄：{e}")
+    # joystick thread exit flag
+    exit_flag = False
+
+    def handle_joystick_input():
+        global exit_flag, x_vel_cmd, y_vel_cmd, yaw_vel_cmd, head_vel_cmd
+        
+        
+        while not exit_flag:
+            # get joystick input
+            pygame.event.get()
+            # update robot command
+            x_vel_cmd = -joystick.get_axis(1) * 1
+            y_vel_cmd = -joystick.get_axis(0) * 1
+            yaw_vel_cmd = -joystick.get_axis(3) * 1
+            pygame.time.delay(100)
+
+    if joystick_opened and joystick_use:
+        joystick_thread = Thread(target=handle_joystick_input)
+        joystick_thread.start()
 
 def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
-    
-    # Enable graphics for video recording even in headless mode
-    if args.headless and RENDER:
-        print("Running in headless mode with offscreen rendering for video recording...")
-        env_cfg.sim.use_gpu_pipeline = True  # Required for offscreen rendering
-    
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 10)
     # env_cfg.terrain.mesh_type = 'trimesh'
@@ -123,10 +114,7 @@ def play(args):
 
     # prepare environment
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
-    
-    # Only set viewer camera if not in headless mode
-    if not args.headless:
-        env.set_camera(env_cfg.viewer.pos, env_cfg.viewer.lookat)
+    env.set_camera(env_cfg.viewer.pos, env_cfg.viewer.lookat)
 
     # load policy
     train_cfg.runner.resume = True
@@ -145,52 +133,30 @@ def play(args):
     robot_index = 0 # which robot is used for logging
     joint_index = 5 # which joint is used for logging
     stop_state_log = 1000 # number of steps before plotting states
-    video = None
-    camera_initialized = False
-    h1 = None
-    
     if RENDER:
-        if args.headless and not os.getenv("ISAAC_GYM_USE_EGL"):
-            print("WARNING: Headless video recording requires ISAAC_GYM_USE_EGL=1. Skipping video.")
-            camera_initialized = False
-        else:
-            # Create camera sensor for offscreen rendering (works in headless mode when EGL is enabled)
-            camera_properties = gymapi.CameraProperties()
-            camera_properties.width = 1920
-            camera_properties.height = 1080
-            h1 = env.gym.create_camera_sensor(env.envs[0], camera_properties)
-            
-            # Check if camera was created successfully
-            if h1 == -1 or h1 is None:
-                print("WARNING: Failed to create camera sensor. Video recording disabled.")
-                camera_initialized = False
-            else:
-                # Attach camera to robot body for following view
-                camera_offset = gymapi.Vec3(1, -1, 0.5)
-                camera_rotation = gymapi.Quat.from_axis_angle(gymapi.Vec3(-0.3, 0.2, 1),
-                                                            np.deg2rad(135))
-                actor_handle = env.gym.get_actor_handle(env.envs[0], 0)
-                body_handle = env.gym.get_actor_rigid_body_handle(env.envs[0], actor_handle, 0)
-                env.gym.attach_camera_to_body(
-                    h1, env.envs[0], body_handle,
-                    gymapi.Transform(camera_offset, camera_rotation),
-                    gymapi.FOLLOW_POSITION)
+        camera_properties = gymapi.CameraProperties()
+        camera_properties.width = 1920
+        camera_properties.height = 1080
+        h1 = env.gym.create_camera_sensor(env.envs[0], camera_properties)
+        camera_offset = gymapi.Vec3(1, -1, 0.5)
+        camera_rotation = gymapi.Quat.from_axis_angle(gymapi.Vec3(-0.3, 0.2, 1),
+                                                    np.deg2rad(135))
+        actor_handle = env.gym.get_actor_handle(env.envs[0], 0)
+        body_handle = env.gym.get_actor_rigid_body_handle(env.envs[0], actor_handle, 0)
+        env.gym.attach_camera_to_body(
+            h1, env.envs[0], body_handle,
+            gymapi.Transform(camera_offset, camera_rotation),
+            gymapi.FOLLOW_POSITION)
 
-                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-                video_dir = os.path.join(LEGGED_GYM_ROOT_DIR, 'videos')
-                experiment_dir = os.path.join(LEGGED_GYM_ROOT_DIR, 'videos', train_cfg.runner.experiment_name)
-                run_name_suffix = args.run_name if args.run_name else ''
-                dir = os.path.join(experiment_dir, datetime.now().strftime('%b%d_%H-%M-%S') + run_name_suffix + '.mp4')
-                if not os.path.exists(video_dir):
-                    os.makedirs(video_dir,exist_ok=True)
-                if not os.path.exists(experiment_dir):
-                    os.makedirs(experiment_dir,exist_ok=True)
-                video = cv2.VideoWriter(dir, fourcc, 50.0, (1920, 1080))
-                camera_initialized = True
-                if args.headless:
-                    print(f"Offscreen video recording enabled (headless mode). Saving to: {dir}")
-                else:
-                    print(f"Video recording enabled. Saving to: {dir}")
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        video_dir = os.path.join(LEGGED_GYM_ROOT_DIR, 'videos')
+        experiment_dir = os.path.join(LEGGED_GYM_ROOT_DIR, 'videos', train_cfg.runner.experiment_name)
+        dir = os.path.join(experiment_dir, datetime.now().strftime('%b%d_%H-%M-%S')+ args.run_name + '.mp4')
+        if not os.path.exists(video_dir):
+            os.makedirs(video_dir,exist_ok=True)
+        if not os.path.exists(experiment_dir):
+            os.makedirs(experiment_dir,exist_ok=True)
+        video = cv2.VideoWriter(dir, fourcc, 50.0, (1920, 1080))
     
     obs = env.get_observations()
 
@@ -199,37 +165,28 @@ def play(args):
         
         actions = policy(obs.detach()) # * 0.
         
-        if USE_GENERATED_COMMANDS:
-            # Generate varying speed commands
-            generate_speed_commands(i, total_steps=10*stop_state_log)
-            env.commands[:, 0] = x_vel_cmd
-            env.commands[:, 1] = y_vel_cmd
-            env.commands[:, 2] = yaw_vel_cmd
-            env.commands[:, 3] = 0.
-        elif FIX_COMMAND:
+        if FIX_COMMAND:
             env.commands[:, 0] = 0.5   # 1.0
             env.commands[:, 1] = 0
             env.commands[:, 2] = 0
             env.commands[:, 3] = 0.
+            
         else:
-            # Default: no commands (zero velocity)
-            env.commands[:, 0] = 0.0
-            env.commands[:, 1] = 0.0
-            env.commands[:, 2] = 0.0
+            env.commands[:, 0] = x_vel_cmd
+            env.commands[:, 1] = y_vel_cmd
+            env.commands[:, 2] = yaw_vel_cmd
             env.commands[:, 3] = 0.
         
         obs, critic_obs, rews, dones, infos = env.step(actions.detach())
 
-        # Render and record video (works in both headless and normal modes)
-        if camera_initialized and video is not None:
+        if RENDER:
             env.gym.fetch_results(env.sim, True)
             env.gym.step_graphics(env.sim)
             env.gym.render_all_camera_sensors(env.sim)
             img = env.gym.get_camera_image(env.sim, env.envs[0], h1, gymapi.IMAGE_COLOR)
-            if img.size > 0:  # Check if image is not empty
-                img = np.reshape(img, (1080, 1920, 4))
-                img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
-                video.write(img)
+            img = np.reshape(img, (1080, 1920, 4))
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            video.write(img[..., :3])
 
         if i > stop_state_log*0.2 and i < stop_state_log:
             dict = {
@@ -282,13 +239,12 @@ def play(args):
             if num_episodes>0:
                 logger.log_rewards(infos["episode"], num_episodes)
 
-    if video is not None:
+    if RENDER:
         video.release()
-        print(f"Video saved to: {dir}")
 
 if __name__ == '__main__':
     EXPORT_POLICY = False
-    FIX_COMMAND = True  # Set to True for constant speed (0.5 m/s forward)
+    RENDER = False
+    FIX_COMMAND = False
     args = get_args()
-    RENDER = args.save_video  # Enable rendering if --save_video flag is passed
     play(args)

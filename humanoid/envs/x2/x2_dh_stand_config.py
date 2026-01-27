@@ -121,7 +121,7 @@ class X2DHStandCfg(LeggedRobotCfg):
             height_measurements = 0.1
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.85]  # adjusted height for X2
+        pos = [0.0, 0.0, 0.67]  
 
         default_joint_angles = {  # = target angles [rad] when action = 0.0
             # Legs (controlled)

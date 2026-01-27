@@ -84,7 +84,8 @@ def export_policy(args):
     log_root_encoder = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported_data')
     model_path = get_load_path(log_root_encoder, load_run=args.load_run, checkpoint=args.checkpoint)
     print("Load model from:", model_path)
-    loaded_dict = torch.load(model_path)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    loaded_dict = torch.load(model_path, map_location=device)
     actor_critic.load_state_dict(loaded_dict["model_state_dict"])
     
     exported_policy = ExportedDH(actor_critic.actor,

@@ -39,44 +39,10 @@ from humanoid import LEGGED_GYM_ROOT_DIR
 from humanoid.envs import *
 from humanoid.utils import  Logger
 import torch
-import pygame
-from threading import Thread
-from humanoid.utils.helpers import get_load_path
 import os
-import time
 
 x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.0, 0.0
-joystick_use = True
-joystick_opened = False
-
-if joystick_use:
-    pygame.init()
-    try:
-        # get joystick
-        joystick = pygame.joystick.Joystick(0)
-        joystick.init()
-        joystick_opened = True
-    except Exception as e:
-        print(f"无法打开手柄：{e}")
-    # joystick thread exit flag
-    exit_flag = False
-
-    def handle_joystick_input():
-        global exit_flag, x_vel_cmd, y_vel_cmd, yaw_vel_cmd, head_vel_cmd
-        
-        
-        while not exit_flag:
-            # get joystick input
-            pygame.event.get()
-            # update robot command
-            x_vel_cmd = -joystick.get_axis(1) * 1
-            y_vel_cmd = -joystick.get_axis(0) * 1
-            yaw_vel_cmd = -joystick.get_axis(3) * 1
-            pygame.time.delay(100)
-
-    if joystick_opened and joystick_use:
-        joystick_thread = Thread(target=handle_joystick_input)
-        joystick_thread.start()
+current_random_command = (0.0, 0.0, 0.0)
 
 class cmd:
     vx = 0.0
@@ -133,7 +99,50 @@ def pd_control(target_q, q, kp, target_dq, dq, kd, cfg):
     return torque_out
 
 
-def run_mujoco(policy, cfg, env_cfg):
+def generate_speed_commands(step_idx, total_steps=10000):
+    """Patterned command sweep used when command_mode == 'pattern'."""
+    global x_vel_cmd, y_vel_cmd, yaw_vel_cmd
+
+    progress = (step_idx % total_steps) / total_steps
+    if progress < 0.2:  # Forward walk
+        x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.5, 0.0, 0.0
+    elif progress < 0.4:  # Strafe left
+        x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.3, 0.0
+    elif progress < 0.6:  # Strafe right
+        x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, -0.3, 0.0
+    elif progress < 0.8:  # Rotate
+        x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.0, 0.5
+    else:  # Combined motion
+        x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.5, 0.0, 0.3
+
+
+def update_commands(step_idx, command_mode, rng, random_hold_steps):
+    """Update global velocity commands based on the requested mode."""
+    global x_vel_cmd, y_vel_cmd, yaw_vel_cmd, current_random_command
+
+    if command_mode == 'fixed':
+        x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.5, 0.0, 0.0
+        return
+
+    if command_mode == 'pattern':
+        generate_speed_commands(step_idx)
+        return
+
+    if command_mode == 'random':
+        if step_idx == 0 or step_idx % max(1, random_hold_steps) == 0:
+            current_random_command = (
+                float(rng.uniform(-0.6, 0.6)),
+                float(rng.uniform(-0.4, 0.4)),
+                float(rng.uniform(-0.8, 0.8)),
+            )
+        x_vel_cmd, y_vel_cmd, yaw_vel_cmd = current_random_command
+        return
+
+    # Fallback to zero command
+    x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.0, 0.0
+
+
+def run_mujoco(policy, cfg, env_cfg, command_mode='fixed', random_hold_steps=200, seed=None):
     """
     Run the Mujoco simulation using the provided policy and configuration.
 
@@ -144,6 +153,7 @@ def run_mujoco(policy, cfg, env_cfg):
     Returns:
         None
     """
+    rng = np.random.default_rng(seed)
     print("Load mujoco xml from:", cfg.sim_config.mujoco_model_path)
     # load model xml
     model = mujoco.MjModel.from_xml_path(cfg.sim_config.mujoco_model_path)
@@ -171,8 +181,9 @@ def run_mujoco(policy, cfg, env_cfg):
 
     np.set_printoptions(formatter={'float': '{:0.4f}'.format})
 
-    for _ in range(int(cfg.sim_config.sim_duration / cfg.sim_config.dt)):
+    for step_idx in range(int(cfg.sim_config.sim_duration / cfg.sim_config.dt)):
         # Obtain an observation
+        update_commands(step_idx, command_mode, rng, random_hold_steps)
         q, dq, quat, v, omega, gvec, base_pos, foot_positions, foot_forces = get_obs(data,model)
         q = q[-env_cfg.env.num_actions:]
         dq = dq[-env_cfg.env.num_actions:]
@@ -214,8 +225,6 @@ def run_mujoco(policy, cfg, env_cfg):
                 stand_command = (vel_norm <= env_cfg.commands.stand_com_threshold)
                 obs[0, -1] = stand_command
             
-            print(x_vel_cmd, y_vel_cmd, yaw_vel_cmd)
-
             obs = np.clip(obs, -env_cfg.normalization.clip_observations, env_cfg.normalization.clip_observations)
 
             hist_obs.append(obs)
@@ -244,7 +253,7 @@ def run_mujoco(policy, cfg, env_cfg):
         count_lowlevel += 1
         idx = 5
         dof_pos_target = target_q + cfg.robot_config.default_dof_pos
-        if _ < stop_state_log:
+        if step_idx < stop_state_log:
             dict = {
                     'base_height': base_z,
                     'foot_z_l': foot_z[0],
@@ -282,7 +291,7 @@ def run_mujoco(policy, cfg, env_cfg):
                 dict[f'dof_vel[{i}]'] = dq[i].item()
             logger.log_states(dict=dict)
         
-        elif _== stop_state_log:
+        elif step_idx == stop_state_log:
             logger.plot_states()
 
     viewer.close()
@@ -296,6 +305,12 @@ if __name__ == '__main__':
                         help='Name of the run to load when resume=True. If -1: will load the last run. Overrides config file if provided.')
     parser.add_argument('--task', type=str, required=True,
                         help='task name.')
+    parser.add_argument('--command_mode', choices=['fixed', 'random', 'pattern'], default='fixed',
+                        help='How to generate commands for mujoco: fixed velocity, random samples, or patterned sweep.')
+    parser.add_argument('--random_hold_steps', type=int, default=200,
+                        help='Number of low-level steps to hold each random command sample (only used in random mode).')
+    parser.add_argument('--command_seed', type=int, default=None,
+                        help='Seed for reproducible random command generation.')
     args = parser.parse_args()
     env_cfg, _ = task_registry.get_cfgs(name=args.task)
 
@@ -329,6 +344,9 @@ if __name__ == '__main__':
     policy = torch.jit.load(model_path)
     print("Load model from:", model_path)
 
-    run_mujoco(policy, Sim2simCfg(), env_cfg)
+    run_mujoco(policy, Sim2simCfg(), env_cfg,
+               command_mode=args.command_mode,
+               random_hold_steps=args.random_hold_steps,
+               seed=args.command_seed)
 
     

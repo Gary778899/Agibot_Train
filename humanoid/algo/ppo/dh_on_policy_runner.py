@@ -299,7 +299,10 @@ class DHOnPolicyRunner:
         )
 
     def load(self, path, load_optimizer=True):
-        loaded_dict = torch.load(path)
+        # pick the device you actually want at runtime
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        loaded_dict = torch.load(path, map_location=device)
         self.alg.actor_critic.load_state_dict(loaded_dict["model_state_dict"])
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])

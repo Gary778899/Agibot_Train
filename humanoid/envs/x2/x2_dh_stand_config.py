@@ -122,22 +122,24 @@ class X2DHStandCfg(LeggedRobotCfg):
             height_measurements = 0.1
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.68]  
+        pos = [0.0, 0.0, 0.7]  # Adjusted from 0.68 to match X1
 
         default_joint_angles = {  # = target angles [rad] when action = 0.0
-            # Legs (controlled)
-            'left_hip_pitch_joint': 0,
-            'left_hip_roll_joint': 0.,
-            'left_hip_yaw_joint': 0,
-            'left_knee_joint': 0,
-            'left_ankle_pitch_joint': 0,
-            'left_ankle_roll_joint': 0,
-            'right_hip_pitch_joint': 0,
-            'right_hip_roll_joint': 0.,
-            'right_hip_yaw_joint': 0,
-            'right_knee_joint': 0,
-            'right_ankle_pitch_joint': 0,
-            'right_ankle_roll_joint': 0,
+            # Legs (controlled) - Similar to X1 for stable standing pose
+            # Left leg: slight hip pitch forward, knee bent, ankle compensates
+            'left_hip_pitch_joint': 0.38,      # ~22 degrees forward (X1: 0.4)
+            'left_hip_roll_joint': 0.05,       # slight outward tilt
+            'left_hip_yaw_joint': -0.30,       # slight inward rotation (X1: -0.31)
+            'left_knee_joint': 0.48,           # ~27 degrees bend (X1: 0.49)
+            'left_ankle_pitch_joint': -0.20,   # compensate for knee bend (X1: -0.21)
+            'left_ankle_roll_joint': 0.0,      # neutral
+            # Right leg: opposite stance for stability
+            'right_hip_pitch_joint': -0.38,    # ~22 degrees backward
+            'right_hip_roll_joint': -0.05,     # slight outward tilt
+            'right_hip_yaw_joint': 0.30,       # slight inward rotation
+            'right_knee_joint': 0.48,          # ~27 degrees bend
+            'right_ankle_pitch_joint': -0.20,  # compensate for knee bend
+            'right_ankle_roll_joint': 0.0,     # neutral
             # Waist (controlled)
             # 'waist_yaw_joint': 0.0,
             # 'waist_pitch_joint': 0.0,
@@ -211,6 +213,11 @@ class X2DHStandCfg(LeggedRobotCfg):
         randomize_gains = True
         stiffness_multiplier_range = [0.8, 1.2]  # Factor
         damping_multiplier_range = [0.8, 1.2]    # Factor
+
+    # Override viewer pose for a closer full-body view
+    class viewer(LeggedRobotCfg.viewer):
+        pos = [2.0, -2.0, 1.4]     # camera position (x, y, z) meters
+        lookat = [0.0, 0.0, 0.7]   # target point (x, y, z) meters
 
         randomize_torque = True
         torque_multiplier_range = [0.8, 1.2]
@@ -327,11 +334,14 @@ class X2DHStandCfg(LeggedRobotCfg):
         soft_dof_pos_limit = 0.98
         soft_dof_vel_limit = 0.9
         soft_torque_limit = 0.9
-        base_height_target = 0.61  
+        base_height_target = 0.62  # Adjusted for X2's geometry
         foot_min_dist = 0.2
         foot_max_dist = 1.0
 
         # final_swing_joint_pos = final_swing_joint_delta_pos + default_pos
+        # Adjusted for X2's new default pose (based on X1's working values)
+        # Format: [L_hip_pitch, L_hip_roll, L_hip_yaw, L_knee, L_ankle_pitch, L_ankle_roll,
+        #          R_hip_pitch, R_hip_roll, R_hip_yaw, R_knee, R_ankle_pitch, R_ankle_roll]
         final_swing_joint_delta_pos = [0.25, 0.05, -0.11, 0.35, -0.16, 0.0, -0.25, -0.05, 0.11, 0.35, -0.16, 0.0]
         target_feet_height = 0.03 
         target_feet_height_max = 0.06

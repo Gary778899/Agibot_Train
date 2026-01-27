@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <robot name="x2t2.5">
   <mujoco>
-    <compiler meshdir=".../meshes" discardvisual="false" />
+    <compiler meshdir="../meshes" discardvisual="false" />
   </mujoco>
   <link name="pelvis">
     <inertial>
